@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 function Home() {
   const [walletAddress, setWalletAddress] = useState();
   const [accessToken, setAccessToken] = useState();
-  
+  const [signedHash, setSignedHash] = useState();
   
 
   // runs when page started and when walletAddress state changes
@@ -71,24 +71,19 @@ function Home() {
     }
   }
 
-  const testFetch = () => {
-    fetch('/api/hello')
-    .then((response) => response.json())
-    .then((data) => {
-      console.log(data.name);
-    });
-  }
-  
-
   const signMessage = async (message) => {
     try {
       let provider = new ethers.providers.Web3Provider(window.ethereum);
       let signer = provider.getSigner();
-      signer.signMessage(message).then(value => {
-        console.log(value);
-      }).catch(err => {
-        console.log(err);
-      })
+      fetch(`/api/verify/${message}`)
+      .then((response) => response.json())
+      .then((data) => {
+        signer.signMessage(data.hash).then(value => {
+          setSignedHash(value);
+        }).catch(err => {
+          console.log(err);
+        })
+      });
     } catch (err) {
       console.log(err);
     }
@@ -123,9 +118,20 @@ function Home() {
                 <div className='text-white mx-auto mt-5'>
                   {accessToken}
                 </div>
-                <div onClick={() => signMessage(accessToken)} className='text-white mx-auto mt-5 px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
-                  sign
-                </div>
+                {signedHash === undefined ? (
+                  <>
+                    <div onClick={() => signMessage(accessToken)} className='text-white mx-auto mt-5 px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
+                      sign
+                    </div>
+                  </>
+                ):(
+                  <>
+                    <div className='text-white mx-auto mt-5'>
+                      {signedHash}
+                    </div>
+                  </>
+                )}
+                
               </>
             )}
           </div>

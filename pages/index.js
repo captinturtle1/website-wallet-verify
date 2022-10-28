@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 
 function Home() {
   const [walletAddress, setWalletAddress] = useState();
-  const [accessToken, setAccessToken] = useState();
+  const [discordUserId, setDiscordUserId] = useState();
   const [signedHash, setSignedHash] = useState();
+  const [isHolder, setIsHolder] = useState(false);
   
 
   // runs when page started and when walletAddress state changes
@@ -20,7 +21,7 @@ function Home() {
 			.then(result => result.json())
 			.then(response => {
 				console.log(response);
-        setAccessToken(response.id);
+        setDiscordUserId(response.id);
 			})
 			.catch(console.error);
     }
@@ -71,19 +72,29 @@ function Home() {
     }
   }
 
-  const signMessage = async (message) => {
+  const signMessage = async () => {
     try {
       let provider = new ethers.providers.Web3Provider(window.ethereum);
       let signer = provider.getSigner();
-      fetch(`/api/verify/${message}`)
-      .then((response) => response.json())
-      .then((data) => {
-        signer.signMessage(data.hash).then(value => {
-          setSignedHash(value);
-        }).catch(err => {
+      signer.signMessage(discordUserId).then(value => {
+        setSignedHash(value);
+        let userData = {
+          userId: discordUserId,
+          walletAddress: walletAddress,
+          signedHash: value
+        }
+        fetch(`/api/verify/`, {method: 'POST', headers: {'Content-Type': 'application/json'},  body: JSON.stringify(userData)})
+        .then((response) => response.json())
+        .then((data) => {
+          console.log(data);
+          setIsHolder(data.isHolder)
+        })
+        .catch((err) => {
           console.log(err);
         })
-      });
+      }).catch(err => {
+        console.log(err);
+      })
     } catch (err) {
       console.log(err);
     }
@@ -92,50 +103,40 @@ function Home() {
   return (
     <div className='h-screen bg-zinc-800 flex flex-col'>
       {walletAddress === undefined ? (
-        <>
-          <div className='mt-[45vh] flex flex-col'>
-            <div onClick={requestAccount} className='text-white mx-auto px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
-              connect
-            </div>
+        <div className='mt-[45vh] flex flex-col'>
+          <div onClick={requestAccount} className='text-white mx-auto px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
+            connect
           </div>
-        </>
+        </div>
       ):(
-        <>
-          <div className='mt-[45vh] flex flex-col'>
-            <div className='text-white mx-auto mt-5'>
-              {walletAddress}
-            </div>
-            {accessToken === undefined ? (
-              <>
-                <div className='mt-5 flex flex-col'>
-                  <a href='https://discord.com/api/oauth2/authorize?client_id=746492859397439508&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2F&response_type=token&scope=identify' className='text-white mx-auto px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
-                    connect discord
-                  </a>
-                </div>
-              </>
-            ):(
-              <>
-                <div className='text-white mx-auto mt-5'>
-                  {accessToken}
-                </div>
-                {signedHash === undefined ? (
-                  <>
-                    <div onClick={() => signMessage(accessToken)} className='text-white mx-auto mt-5 px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
-                      sign
-                    </div>
-                  </>
-                ):(
-                  <>
-                    <div className='text-white mx-auto mt-5'>
-                      {signedHash}
-                    </div>
-                  </>
-                )}
-                
-              </>
-            )}
+        <div className='mt-[45vh] flex flex-col'>
+          <div className='text-white mx-auto mt-5'>
+            {walletAddress}
           </div>
-        </>
+          {discordUserId === undefined ? (
+            <div className='mt-5 flex flex-col'>
+              <a href='https://discord.com/api/oauth2/authorize?client_id=746492859397439508&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2F&response_type=token&scope=identify' className='text-white mx-auto px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
+                connect discord
+              </a>
+            </div>
+          ):(
+            <>
+              <div className='text-white mx-auto mt-5'>
+                {discordUserId}
+              </div>
+              {signedHash === undefined ? (
+                <div onClick={signMessage} className='text-white mx-auto mt-5 px-5 py-1 rounded-full cursor-pointer select-none transition-all drop-shadow active:drop-shadow-none active:translate-y-[2px] bg-orange-500 hover:bg-orange-400 active:bg-orange-600'>
+                  sign
+                </div>
+              ):(
+                <div className='text-white mx-auto mt-5 flex flex-col'>
+                  {signedHash}
+                  {isHolder ? (<div className='m-auto mt-5'>authorized</div>):(<div className='m-auto mt-5'>not a holder</div>)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );
